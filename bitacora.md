@@ -162,6 +162,48 @@ python3 script.py --runs 30 --output experiment_results_30runs.csv
 
 ---
 
+## 11. Ejecución del Experimento con 60 Runs
+
+**Fecha**: 2026-05-21  
+**Descripción**: Ejecución de `script.py` con configuración ampliada a 60 runs para mayor robustez estadística en el contexto de tesis.
+
+**Comando ejecutado**:
+```bash
+python3 script.py --runs 60 --output experiment_results_60runs.csv
+```
+
+**Características**:
+- 60 ejecuciones independientes con semillas 42–101.
+- Archivo de salida separado (`experiment_results_60runs.csv`) para no sobrescribir resultados anteriores.
+- Duración total: ~77 minutos (primera tanda: 47 runs en 60 min; reanudación: 13 runs en 17 min).
+- Reanudación automática habilitada: tras un timeout en la primera ejecución, el script detectó las 47 runs completadas y finalizó las 13 restantes sin pérdida de datos.
+
+**Archivos generados**:
+- `experiment_results_60runs.csv` — 540 filas (60 runs × 9 métodos).
+- `experiment_results_60runs_summary.csv` — resumen estadístico de 60 runs (mean ± std).
+
+---
+
+## 12. Análisis y Visualización de Resultados (60 Runs)
+
+**Fecha**: 2026-05-21  
+**Descripción**: Generación de tabla comparativa y visualización para los 60 runs.
+
+**Archivos creados**:
+- `results_analysis_60runs.py` — script de análisis para 60 runs (con límites de gráficos dinámicos).
+- `results_comparison_60runs.md` — tabla comparativa en Markdown.
+- `results_comparison_60runs.png` — gráfico comparativo actualizado.
+
+**Hallazgos clave (60 runs)**:
+- **Mayor accuracy**: `baseline`, `variance_threshold`, `mutual_info`, `l1`, `rf_topk`, `rf_median` (empatados en **0.9356**).
+- **Menor número de features**: `chi2`, `mutual_info`, `rfe`, `rf_topk` (todos con **10 features**).
+- **Más eficiente (accuracy/tiempo)**: `rf_topk` (**27.68**), seguido de `chi2` (**22.29**) y `rfe` (**22.14**).
+- **`chi2` es el método más estable**: desviación estándar de 0 en todas las métricas (selección determinista).
+- **`rfecv`** mantiene alta variabilidad en features seleccionadas (**33.0 ± 4.8**) con accuracy ligeramente inferior.
+- Los rankings se mantienen consistentes con los experimentos de 15 y 30 runs, confirmando la estabilidad de los resultados.
+
+---
+
 ## Resumen de Archivos del Proyecto
 
 | Archivo | Estado | Descripción |
@@ -182,3 +224,8 @@ python3 script.py --runs 30 --output experiment_results_30runs.csv
 | `results_comparison_30runs.md` | Creado | Tabla comparativa en Markdown (30 runs). |
 | `results_comparison.png` | Creado | Gráfico comparativo (15 runs). |
 | `results_comparison_30runs.png` | Creado | Gráfico comparativo (30 runs). |
+| `experiment_results_60runs.csv` | Generado | Resultados individuales del experimento (60 runs). |
+| `experiment_results_60runs_summary.csv` | Generado | Resumen estadístico del experimento (60 runs). |
+| `results_analysis_60runs.py` | Creado | Script de análisis y visualización (60 runs). |
+| `results_comparison_60runs.md` | Creado | Tabla comparativa en Markdown (60 runs). |
+| `results_comparison_60runs.png` | Creado | Gráfico comparativo (60 runs). |

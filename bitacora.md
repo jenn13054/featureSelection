@@ -204,11 +204,106 @@ python3 script.py --runs 60 --output experiment_results_60runs.csv
 
 ---
 
+## 13. Análisis de Estabilidad por Cross-Validation (5-Fold CV)
+
+**Fecha**: 2026-05-28  
+**Descripción**: Implementación y ejecución de un módulo de estabilidad que mide la consistencia de las características seleccionadas por cada método a través de StratifiedKFold.
+
+**Archivo modificado**: `script.py`
+
+**Cambios principales**:
+- **Nuevo argumento `--stability-cv`**: activa el análisis de estabilidad indicando el número de folds.
+- **Función `select_features()`**: extrae la lógica de selección de cada método para reutilizarla en el experimento y en el análisis de estabilidad.
+- **Función `compute_stability_cv()`**: ejecuta CV para cada método y calcula:
+  - **Jaccard Index** promedio entre pares de folds (similitud de conjuntos de features).
+  - **Número de features** promedio y desviación estándar.
+  - **CV Accuracy** promedio con las features seleccionadas.
+  - **Frecuencia de selección** de cada feature por método.
+- **Refactorización de `run_single_experiment`**: usa `select_features()` para reducir duplicación de código.
+
+**Ejecución**:
+```bash
+python3 script.py --runs 0 --stability-cv 5 \
+  --methods baseline variance_threshold chi2 mutual_info l1 rf_topk rf_median \
+  --data data_final.csv
+```
+- Se excluyeron `rfe` y `rfecv` por alta demanda computacional con ~108k filas.
+
+**Hallazgos clave**:
+| Método | Jaccard Mean | N Features | Interpretación |
+|--------|--------------|------------|----------------|
+| `baseline` | 1.0000 | 46.0 | Referencia perfectamente estable. |
+| `rf_topk` | 1.0000 | 10.0 | Top 10 por importancia; 100% estable. |
+| `rf_median` | 1.0000 | 23.0 | Umbral mediano; 100% estable. |
+| `variance_threshold` | 0.9909 | 43.2 | Elimina ~3 features de baja varianza. |
+| `l1` | 0.9422 | 43.4 | Regularización L1 conservadora. |
+| `chi2` | 0.9273 | 10.0 | k=10 determinista; muy estable. |
+| `mutual_info` | **0.5531** | 10.0 | **Menos estable**; el conjunto de 10 features varía notablemente entre folds. |
+
+- Rendimiento (CV Accuracy) prácticamente idéntico entre todos los métodos (~0.9356), indicando que la selección de características reduce dimensionalidad sin penalizar accuracy.
+- Features más consistentes globalmente: `PNA` (83.3%), `average.first.period` (83.3%), `general.math.eval_codes` (66.7%), `scholarship.type_codes` (66.7%).
+- `chi2` prioriza un perfil distinto: variables de exatec, becas (`scholarship.perc`, `total.scholarship.loan`) y `online.test`.
+
+**Archivos generados**:
+- `experiment_results_stability.csv` — resumen de estabilidad por método.
+- `experiment_results_stability_freq.csv` — frecuencia de selección de cada feature por método.
+- `stability_heatmap.png` — heatmap visual de estabilidad (features × métodos).
+
+---
+
+## 14. Documentación del Análisis de Estabilidad
+
+**Fecha**: 2026-05-28  
+**Archivo creado**: `stability_analysis.md`
+
+**Contenido**:
+- Resumen ejecutivo del análisis de estabilidad.
+- Tabla comparativa de Jaccard, accuracy y número de features.
+- Hallazgos clave con interpretación de cada método.
+- Top 10 features más consistentes.
+- Recomendaciones para selección de método en contexto de tesis.
+
+---
+
+## 15. Nuevo Método: `consensus` (Voto Mayoritario)
+
+**Fecha**: 2026-05-28  
+**Archivo modificado**: `script.py`
+
+**Descripción**: Se agregó un décimo método de selección que opera por **voto mayoritario** entre 6 métodos rápidos: `variance_threshold`, `chi2`, `mutual_info`, `l1`, `rf_topk`, `rf_median`.
+
+**Cambios técnicos**:
+- Agregado `"consensus"` a `AVAILABLE_METHODS`.
+- Nuevo argumento `--consensus-threshold` (default 0.5): porcentaje mínimo de métodos que deben seleccionar una feature para que sea incluida.
+- Función `select_features()` ahora maneja `method == "consensus"`, contando votos y aplicando el umbral.
+- Si ninguna feature alcanza el umbral, hace fallback al top 10 más votado.
+
+**Ejecución de prueba**:
+```bash
+python3 script.py --runs 1 --stability-cv 5 \
+  --methods consensus baseline chi2 l1 rf_topk \
+  --data data_final.csv
+```
+
+**Resultados del método `consensus` (threshold=0.5)**:
+| Métrica | Valor |
+|---------|-------|
+| CV Accuracy | 0.9357 |
+| Jaccard Mean | 0.8605 |
+| N Features (avg) | 32.8 |
+
+- Reduce de **46 a ~33 features** (~29% de reducción).
+- Mantiene el **mismo accuracy** que el baseline.
+- Estabilidad intermedia (0.86), superior a `mutual_info` pero menor que `rf_topk`.
+- Selecciona 27 features con frecuencia 100% (las más votadas) y ~5 variables adicionales según el fold.
+
+---
+
 ## Resumen de Archivos del Proyecto
 
 | Archivo | Estado | Descripción |
 |---|---|---|
-| `script.py` | Modificado | Script principal refactorizado para experimentos repetibles. |
+| `script.py` | Modificado | Script principal con experimentos repetibles, análisis de estabilidad CV y método `consensus`. |
 | `requirements.txt` | Creado | Dependencias: numpy, pandas, scikit-learn. |
 | `experiment.md` | Creado | Guía de uso del experimento. |
 | `bitacora.md` | Creado | Este documento. |
@@ -229,3 +324,7 @@ python3 script.py --runs 60 --output experiment_results_60runs.csv
 | `results_analysis_60runs.py` | Creado | Script de análisis y visualización (60 runs). |
 | `results_comparison_60runs.md` | Creado | Tabla comparativa en Markdown (60 runs). |
 | `results_comparison_60runs.png` | Creado | Gráfico comparativo (60 runs). |
+| `stability_analysis.md` | Creado | Reporte del análisis de estabilidad (5-Fold CV). |
+| `stability_heatmap.png` | Creado | Heatmap visual de frecuencia de selección por método. |
+| `experiment_results_stability.csv` | Generado | Resumen de estabilidad (Jaccard, accuracy, features). |
+| `experiment_results_stability_freq.csv` | Generado | Frecuencia de selección de cada feature por método. |
